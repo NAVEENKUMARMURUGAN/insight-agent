@@ -1,0 +1,660 @@
+name: tpch_insight_agent
+description: >
+  Semantic model for a wholesale distribution business. Covers customers,
+  products, orders, shipments, and revenue across five global regions.
+  Source: Snowflake TPCH sample data, curated into clean business views.
+
+tables:
+  - name: order_line_items
+    description: >
+      One row per line item on every order placed. Each order typically has
+      1-7 line items. This is the primary fact table for revenue, shipping,
+      and customer analysis. Dates range from 1992 to 1998.
+    base_table:
+      database: INSIGHT_AGENT_DB
+      schema: CURATED
+      table: FACT_ORDER_LINE_ITEMS
+    primary_key:
+      columns: [order_id, line_number]
+
+    dimensions:
+      - name: order_id
+        expr: ORDER_ID
+        data_type: NUMBER
+        description: Unique order identifier.
+
+      - name: line_number
+        expr: LINE_NUMBER
+        data_type: NUMBER
+        description: Line item number within the order (1-7).
+
+      - name: order_date
+        expr: ORDER_DATE
+        data_type: DATE
+        description: Date the order was placed (1992-1998).
+
+      - name: order_status
+        expr: ORDER_STATUS
+        data_type: VARCHAR
+        description: "Order status: F=filled, O=open, P=partial."
+
+      - name: order_priority
+        expr: ORDER_PRIORITY
+        data_type: VARCHAR
+        description: "Priority level: 1-URGENT, 2-HIGH, 3-MEDIUM, 4-NOT SPECIFIED, 5-LOW."
+
+      - name: order_clerk
+        expr: ORDER_CLERK
+        data_type: VARCHAR
+        description: Clerk who processed the order.
+
+      - name: ship_priority
+        expr: SHIP_PRIORITY
+        data_type: NUMBER
+        description: Shipping priority flag.
+
+      - name: product_id
+        expr: PRODUCT_ID
+        data_type: NUMBER
+        description: Foreign key to dim_product.
+
+      - name: supplier_id
+        expr: SUPPLIER_ID
+        data_type: NUMBER
+        description: Foreign key to dim_product (supplier).
+
+      - name: return_flag
+        expr: RETURN_FLAG
+        data_type: VARCHAR
+        description: "R=returned, A=accepted, N=neither."
+
+      - name: line_status
+        expr: LINE_STATUS
+        data_type: VARCHAR
+        description: "F=shipped, O=not yet shipped."
+
+      - name: ship_date
+        expr: SHIP_DATE
+        data_type: DATE
+        description: Date the line item was shipped.
+
+      - name: commit_date
+        expr: COMMIT_DATE
+        data_type: DATE
+        description: Promised delivery date.
+
+      - name: receipt_date
+        expr: RECEIPT_DATE
+        data_type: DATE
+        description: Date customer received the item.
+
+      - name: shipping_instructions
+        expr: SHIPPING_INSTRUCTIONS
+        data_type: VARCHAR
+        description: "Delivery instructions: DELIVER IN PERSON, COLLECT COD, TAKE BACK RETURN, NONE."
+
+      - name: shipping_mode
+        expr: SHIPPING_MODE
+        data_type: VARCHAR
+        description: "Carrier type: REG AIR, AIR, RAIL, SHIP, TRUCK, MAIL, FOB."
+
+      - name: customer_id
+        expr: CUSTOMER_ID
+        data_type: NUMBER
+        description: Foreign key to dim_customer.
+
+      - name: customer_name
+        expr: CUSTOMER_NAME
+        data_type: VARCHAR
+        description: Customer name (denormalized from customer dimension).
+
+      - name: market_segment
+        expr: MARKET_SEGMENT
+        data_type: VARCHAR
+        description: "Customer market segment: BUILDING, AUTOMOBILE, MACHINERY, HOUSEHOLD, FURNITURE."
+
+      - name: customer_nation
+        expr: CUSTOMER_NATION
+        data_type: VARCHAR
+        description: Nation where the customer is located.
+
+      - name: customer_region
+        expr: CUSTOMER_REGION
+        data_type: VARCHAR
+        description: "Region where the customer is located: AFRICA, AMERICA, ASIA, EUROPE, MIDDLE EAST."
+
+      - name: order_year
+        expr: ORDER_YEAR
+        data_type: NUMBER
+        description: Year extracted from order_date.
+
+      - name: order_quarter
+        expr: ORDER_QUARTER
+        data_type: NUMBER
+        description: Quarter extracted from order_date (1-4).
+
+      - name: order_month
+        expr: ORDER_MONTH
+        data_type: NUMBER
+        description: Month extracted from order_date (1-12).
+
+      - name: order_month_start
+        expr: ORDER_MONTH_START
+        data_type: DATE
+        description: First day of the order month.
+
+      - name: was_delivered_late
+        expr: WAS_DELIVERED_LATE
+        data_type: BOOLEAN
+        description: True if the item was received after the commit date.
+
+      - name: days_in_transit
+        expr: DAYS_IN_TRANSIT
+        data_type: NUMBER
+        description: Number of days between ship_date and receipt_date.
+
+    measures:
+      - name: total_gross_revenue
+        expr: GROSS_REVENUE
+        default_aggregation: sum
+        data_type: NUMBER
+        description: Sum of extended price (quantity × unit price) before discounts.
+
+      - name: total_net_revenue
+        expr: NET_REVENUE
+        default_aggregation: sum
+        data_type: NUMBER
+        description: Sum of revenue after discount (gross_revenue × (1 - discount_rate)).
+
+      - name: total_revenue_incl_tax
+        expr: REVENUE_INCL_TAX
+        default_aggregation: sum
+        data_type: NUMBER
+        description: Sum of revenue after discount and tax.
+
+      - name: total_quantity
+        expr: QUANTITY
+        default_aggregation: sum
+        data_type: NUMBER
+        description: Total quantity of items ordered.
+
+      - name: avg_discount_rate
+        expr: DISCOUNT_RATE
+        default_aggregation: avg
+        data_type: NUMBER
+        description: Average discount rate across line items.
+
+      - name: avg_tax_rate
+        expr: TAX_RATE
+        default_aggregation: avg
+        data_type: NUMBER
+        description: Average tax rate across line items.
+
+      - name: order_total_price
+        expr: ORDER_TOTAL_PRICE
+        default_aggregation: sum
+        data_type: NUMBER
+        description: Sum of order-level total prices.
+
+      - name: line_item_count
+        expr: "1"
+        default_aggregation: sum
+        data_type: NUMBER
+        description: Count of line items.
+
+      - name: order_count
+        expr: ORDER_ID
+        default_aggregation: count_distinct
+        data_type: NUMBER
+        description: Count of distinct orders.
+
+      - name: avg_days_in_transit
+        expr: DAYS_IN_TRANSIT
+        default_aggregation: avg
+        data_type: NUMBER
+        description: Average number of days between shipment and receipt.
+
+      - name: late_delivery_count
+        expr: "CASE WHEN WAS_DELIVERED_LATE THEN 1 ELSE 0 END"
+        default_aggregation: sum
+        data_type: NUMBER
+        description: Number of line items delivered late.
+
+  - name: customers
+    description: >
+      One row per customer, enriched with nation and region geography.
+      150,000 customers across 25 nations in 5 regions.
+    base_table:
+      database: INSIGHT_AGENT_DB
+      schema: CURATED
+      table: DIM_CUSTOMER
+    primary_key:
+      columns: [customer_id]
+
+    dimensions:
+      - name: customer_id
+        expr: CUSTOMER_ID
+        data_type: NUMBER
+        description: Unique customer identifier.
+
+      - name: customer_name
+        expr: CUSTOMER_NAME
+        data_type: VARCHAR
+        description: Customer name.
+
+      - name: customer_address
+        expr: CUSTOMER_ADDRESS
+        data_type: VARCHAR
+        description: Customer mailing address.
+
+      - name: customer_phone
+        expr: CUSTOMER_PHONE
+        data_type: VARCHAR
+        description: Customer phone number.
+
+      - name: market_segment
+        expr: MARKET_SEGMENT
+        data_type: VARCHAR
+        description: "Market segment: BUILDING, AUTOMOBILE, MACHINERY, HOUSEHOLD, FURNITURE."
+
+      - name: customer_notes
+        expr: CUSTOMER_NOTES
+        data_type: VARCHAR
+        description: Free-text notes about the customer.
+
+      - name: nation
+        expr: NATION
+        data_type: VARCHAR
+        description: Nation where the customer is located (25 nations).
+
+      - name: region
+        expr: REGION
+        data_type: VARCHAR
+        description: "Region: AFRICA, AMERICA, ASIA, EUROPE, MIDDLE EAST."
+
+    measures:
+      - name: account_balance
+        expr: ACCOUNT_BALANCE
+        default_aggregation: sum
+        data_type: NUMBER
+        description: Sum of customer account balances.
+
+      - name: avg_account_balance
+        expr: ACCOUNT_BALANCE
+        default_aggregation: avg
+        data_type: NUMBER
+        description: Average customer account balance.
+
+      - name: customer_count
+        expr: CUSTOMER_ID
+        default_aggregation: count_distinct
+        data_type: NUMBER
+        description: Count of distinct customers.
+
+  - name: products
+    description: >
+      One row per part-supplier combination. Contains product details and
+      supplier cost information. Use to analyze product catalog, pricing,
+      and supplier relationships.
+    base_table:
+      database: INSIGHT_AGENT_DB
+      schema: CURATED
+      table: DIM_PRODUCT
+    primary_key:
+      columns: [product_id, supplier_id]
+
+    dimensions:
+      - name: product_id
+        expr: PRODUCT_ID
+        data_type: NUMBER
+        description: Unique product identifier.
+
+      - name: product_name
+        expr: PRODUCT_NAME
+        data_type: VARCHAR
+        description: Product name.
+
+      - name: manufacturer
+        expr: MANUFACTURER
+        data_type: VARCHAR
+        description: Manufacturer name (Manufacturer#1 through Manufacturer#5).
+
+      - name: brand
+        expr: BRAND
+        data_type: VARCHAR
+        description: Product brand (Brand#11 through Brand#55).
+
+      - name: product_type
+        expr: PRODUCT_TYPE
+        data_type: VARCHAR
+        description: Product type description.
+
+      - name: product_size
+        expr: PRODUCT_SIZE
+        data_type: NUMBER
+        description: Product size (1-50).
+
+      - name: container
+        expr: CONTAINER
+        data_type: VARCHAR
+        description: Container type (SM BOX, LG CASE, etc.).
+
+      - name: supplier_id
+        expr: SUPPLIER_ID
+        data_type: NUMBER
+        description: Unique supplier identifier.
+
+      - name: supplier_name
+        expr: SUPPLIER_NAME
+        data_type: VARCHAR
+        description: Supplier name.
+
+      - name: supplier_nation
+        expr: SUPPLIER_NATION
+        data_type: VARCHAR
+        description: Nation where the supplier is located.
+
+      - name: supplier_region
+        expr: SUPPLIER_REGION
+        data_type: VARCHAR
+        description: Region where the supplier is located.
+
+      - name: is_preferred_supplier
+        expr: IS_PREFERRED_SUPPLIER
+        data_type: BOOLEAN
+        description: True if this supplier offers the lowest cost for this product.
+
+    measures:
+      - name: retail_price
+        expr: RETAIL_PRICE
+        default_aggregation: avg
+        data_type: NUMBER
+        description: Average retail price.
+
+      - name: supplier_cost
+        expr: SUPPLIER_COST
+        default_aggregation: avg
+        data_type: NUMBER
+        description: Average supplier cost.
+
+      - name: total_quantity_available
+        expr: QUANTITY_AVAILABLE
+        default_aggregation: sum
+        data_type: NUMBER
+        description: Total available inventory across suppliers.
+
+      - name: product_count
+        expr: PRODUCT_ID
+        default_aggregation: count_distinct
+        data_type: NUMBER
+        description: Count of distinct products.
+
+      - name: supplier_count
+        expr: SUPPLIER_ID
+        default_aggregation: count_distinct
+        data_type: NUMBER
+        description: Count of distinct suppliers.
+
+verified_queries:
+
+  # ---------- Basic aggregations ----------
+  - name: total_revenue_in_year
+    question: What was total net revenue in 1995?
+    use_as_onboarding_question: true
+    sql: |
+      SELECT SUM(net_revenue) AS total_net_revenue
+      FROM insight_agent_db.curated.fact_order_line_items
+      WHERE order_year = 1995
+
+  - name: order_count_by_region
+    question: How many orders were placed in each region last year of data?
+    sql: |
+      WITH max_year AS (
+        SELECT MAX(order_year) AS y FROM insight_agent_db.curated.fact_order_line_items
+      )
+      SELECT customer_region, COUNT(DISTINCT order_id) AS order_count
+      FROM insight_agent_db.curated.fact_order_line_items, max_year
+      WHERE order_year = max_year.y
+      GROUP BY customer_region
+      ORDER BY order_count DESC
+
+  - name: avg_order_value_overall
+    question: What is the average order value?
+    sql: |
+      SELECT SUM(net_revenue) / COUNT(DISTINCT order_id) AS avg_order_value
+      FROM insight_agent_db.curated.fact_order_line_items
+
+  # ---------- Top-N patterns ----------
+  - name: top_customers_by_revenue
+    question: Show me the top 10 customers by revenue in 1996
+    use_as_onboarding_question: true
+    sql: |
+      SELECT customer_name, ROUND(SUM(net_revenue), 2) AS total_revenue
+      FROM insight_agent_db.curated.fact_order_line_items
+      WHERE order_year = 1996
+      GROUP BY customer_name
+      ORDER BY total_revenue DESC NULLS LAST
+      LIMIT 10
+
+  - name: top_products_by_volume
+    question: What are the top 5 products by units sold in 1997?
+    sql: |
+      SELECT product_id, SUM(quantity) AS units_sold
+      FROM insight_agent_db.curated.fact_order_line_items
+      WHERE order_year = 1997
+      GROUP BY product_id
+      ORDER BY units_sold DESC NULLS LAST
+      LIMIT 5
+
+  - name: top_segments_by_revenue
+    question: Which market segment generated the most revenue in 1995?
+    sql: |
+      SELECT market_segment, ROUND(SUM(net_revenue), 2) AS total_revenue
+      FROM insight_agent_db.curated.fact_order_line_items
+      WHERE order_year = 1995
+      GROUP BY market_segment
+      ORDER BY total_revenue DESC NULLS LAST
+      LIMIT 1
+
+  # ---------- Time comparisons ----------
+  - name: yoy_revenue_growth
+    question: Compare net revenue between 1994 and 1995 by region
+    use_as_onboarding_question: true
+    sql: |
+      WITH pivoted AS (
+        SELECT
+          customer_region,
+          SUM(CASE WHEN order_year = 1994 THEN net_revenue END) AS revenue_1994,
+          SUM(CASE WHEN order_year = 1995 THEN net_revenue END) AS revenue_1995
+        FROM insight_agent_db.curated.fact_order_line_items
+        WHERE order_year IN (1994, 1995)
+        GROUP BY customer_region
+      )
+      SELECT
+        customer_region,
+        ROUND(revenue_1994, 2) AS revenue_1994,
+        ROUND(revenue_1995, 2) AS revenue_1995,
+        ROUND(100.0 * (revenue_1995 - revenue_1994) / NULLIF(revenue_1994, 0), 2) AS yoy_growth_pct
+      FROM pivoted
+      ORDER BY yoy_growth_pct DESC NULLS LAST
+
+  - name: monthly_revenue_trend
+    question: Show monthly revenue trend for 1995
+    sql: |
+      SELECT
+        order_month_start,
+        ROUND(SUM(net_revenue), 2) AS monthly_revenue
+      FROM insight_agent_db.curated.fact_order_line_items
+      WHERE order_year = 1995
+      GROUP BY order_month_start
+      ORDER BY order_month_start
+
+  - name: qoq_revenue
+    question: Show quarter-over-quarter revenue for 1995 and 1996
+    sql: |
+      SELECT
+        order_year,
+        order_quarter,
+        ROUND(SUM(net_revenue), 2) AS revenue,
+        ROUND(SUM(net_revenue) - LAG(SUM(net_revenue)) OVER (ORDER BY order_year, order_quarter), 2) AS qoq_change
+      FROM insight_agent_db.curated.fact_order_line_items
+      WHERE order_year IN (1995, 1996)
+      GROUP BY order_year, order_quarter
+      ORDER BY order_year, order_quarter
+
+  - name: revenue_vs_prior_year
+    question: Show revenue by region for each year with prior year comparison
+    sql: |
+      SELECT
+        customer_region,
+        order_year,
+        ROUND(SUM(net_revenue), 2) AS revenue,
+        ROUND(LAG(SUM(net_revenue)) OVER (PARTITION BY customer_region ORDER BY order_year), 2) AS prior_year_revenue,
+        ROUND(100.0 * (SUM(net_revenue) - LAG(SUM(net_revenue)) OVER (PARTITION BY customer_region ORDER BY order_year))
+              / NULLIF(LAG(SUM(net_revenue)) OVER (PARTITION BY customer_region ORDER BY order_year), 0), 2) AS yoy_pct
+      FROM insight_agent_db.curated.fact_order_line_items
+      GROUP BY customer_region, order_year
+      ORDER BY customer_region, order_year
+
+  # ---------- Rates and percentages ----------
+  - name: late_delivery_rate_by_mode
+    question: What is the on-time delivery rate by shipping mode in 1995?
+    use_as_onboarding_question: true
+    sql: |
+      SELECT
+        shipping_mode,
+        COUNT(*) AS total_shipments,
+        SUM(CASE WHEN was_delivered_late THEN 1 ELSE 0 END) AS late_shipments,
+        ROUND(100.0 * AVG(CASE WHEN was_delivered_late THEN 1.0 ELSE 0.0 END), 2) AS late_pct,
+        ROUND(100.0 * (1 - AVG(CASE WHEN was_delivered_late THEN 1.0 ELSE 0.0 END)), 2) AS on_time_pct
+      FROM insight_agent_db.curated.fact_order_line_items
+      WHERE order_year = 1995
+      GROUP BY shipping_mode
+      ORDER BY late_pct DESC NULLS LAST
+
+  - name: return_rate_by_priority
+    question: What is the return rate by order priority?
+    sql: |
+      SELECT
+        order_priority,
+        COUNT(*) AS total_line_items,
+        SUM(CASE WHEN return_flag IN ('R', 'A') THEN 1 ELSE 0 END) AS returned_count,
+        ROUND(100.0 * AVG(CASE WHEN return_flag IN ('R', 'A') THEN 1.0 ELSE 0.0 END), 2) AS return_rate_pct
+      FROM insight_agent_db.curated.fact_order_line_items
+      GROUP BY order_priority
+      ORDER BY return_rate_pct DESC NULLS LAST
+
+  - name: discount_impact_by_segment
+    question: What is the average discount rate by market segment?
+    sql: |
+      SELECT
+        market_segment,
+        ROUND(100.0 * AVG(discount_rate), 2) AS avg_discount_pct,
+        ROUND(SUM(gross_revenue - net_revenue), 2) AS total_discount_given,
+        COUNT(DISTINCT order_id) AS orders
+      FROM insight_agent_db.curated.fact_order_line_items
+      GROUP BY market_segment
+      ORDER BY avg_discount_pct DESC NULLS LAST
+
+  # ---------- Multi-dimension grouping ----------
+  - name: revenue_by_region_and_segment
+    question: Show revenue by region and market segment for 1995
+    sql: |
+      SELECT
+        customer_region,
+        market_segment,
+        ROUND(SUM(net_revenue), 2) AS total_revenue
+      FROM insight_agent_db.curated.fact_order_line_items
+      WHERE order_year = 1995
+      GROUP BY customer_region, market_segment
+      ORDER BY customer_region, total_revenue DESC NULLS LAST
+
+  - name: revenue_by_region_quarter
+    question: Show revenue by region and quarter in 1995
+    sql: |
+      SELECT
+        customer_region,
+        order_quarter,
+        ROUND(SUM(net_revenue), 2) AS revenue
+      FROM insight_agent_db.curated.fact_order_line_items
+      WHERE order_year = 1995
+      GROUP BY customer_region, order_quarter
+      ORDER BY customer_region, order_quarter
+
+  # ---------- Filtered aggregations ----------
+  - name: urgent_orders_revenue
+    question: What is the revenue from urgent priority orders in 1995?
+    sql: |
+      SELECT
+        customer_region,
+        ROUND(SUM(net_revenue), 2) AS urgent_revenue,
+        COUNT(DISTINCT order_id) AS urgent_orders
+      FROM insight_agent_db.curated.fact_order_line_items
+      WHERE order_year = 1995
+        AND order_priority = '1-URGENT'
+      GROUP BY customer_region
+      ORDER BY urgent_revenue DESC NULLS LAST
+
+  - name: air_freight_analysis
+    question: How much revenue came from AIR shipping in 1995 compared to other modes?
+    sql: |
+      SELECT
+        CASE WHEN shipping_mode IN ('AIR', 'REG AIR') THEN 'AIR'
+             ELSE 'OTHER' END AS mode_category,
+        ROUND(SUM(net_revenue), 2) AS revenue,
+        COUNT(*) AS line_items,
+        ROUND(AVG(days_in_transit), 1) AS avg_transit_days
+      FROM insight_agent_db.curated.fact_order_line_items
+      WHERE order_year = 1995
+      GROUP BY mode_category
+      ORDER BY revenue DESC NULLS LAST
+
+  # ---------- Ranking / window functions ----------
+  - name: customer_revenue_rank_per_region
+    question: Who are the top 3 customers by revenue in each region for 1995?
+    sql: |
+      WITH ranked AS (
+        SELECT
+          customer_region,
+          customer_name,
+          SUM(net_revenue) AS revenue,
+          ROW_NUMBER() OVER (PARTITION BY customer_region ORDER BY SUM(net_revenue) DESC) AS region_rank
+        FROM insight_agent_db.curated.fact_order_line_items
+        WHERE order_year = 1995
+        GROUP BY customer_region, customer_name
+      )
+      SELECT customer_region, customer_name, ROUND(revenue, 2) AS revenue, region_rank
+      FROM ranked
+      WHERE region_rank <= 3
+      ORDER BY customer_region, region_rank
+
+  - name: cumulative_monthly_revenue
+    question: Show cumulative revenue by month for 1995
+    sql: |
+      SELECT
+        order_month_start,
+        ROUND(SUM(net_revenue), 2) AS monthly_revenue,
+        ROUND(SUM(SUM(net_revenue)) OVER (ORDER BY order_month_start), 2) AS cumulative_revenue
+      FROM insight_agent_db.curated.fact_order_line_items
+      WHERE order_year = 1995
+      GROUP BY order_month_start
+      ORDER BY order_month_start
+
+  # ---------- Complex business question ----------
+  - name: customer_lifetime_value
+    question: Show me the lifetime value and activity of the top 20 customers
+    sql: |
+      SELECT
+        customer_name,
+        customer_region,
+        market_segment,
+        COUNT(DISTINCT order_id) AS total_orders,
+        ROUND(SUM(net_revenue), 2) AS lifetime_revenue,
+        ROUND(SUM(net_revenue) / COUNT(DISTINCT order_id), 2) AS avg_order_value,
+        MIN(order_date) AS first_order_date,
+        MAX(order_date) AS last_order_date,
+        DATEDIFF('day', MIN(order_date), MAX(order_date)) AS customer_tenure_days
+      FROM insight_agent_db.curated.fact_order_line_items
+      GROUP BY customer_name, customer_region, market_segment
+      ORDER BY lifetime_revenue DESC NULLS LAST
+      LIMIT 20
