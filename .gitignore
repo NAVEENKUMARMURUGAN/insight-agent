@@ -10,5 +10,10 @@ rsa_key.pub
 .env.local
 .env.*
 
+# Python
+__pycache__/
+*.pyc
+.venv/
+
 # OS files
 .DS_Store
