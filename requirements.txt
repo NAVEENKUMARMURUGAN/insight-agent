@@ -1,0 +1,8 @@
+anyio==4.13.0
+fastapi==0.115.12
+httpx==0.28.1
+pydantic==2.13.3
+pydantic_core==2.46.3
+python-dotenv==1.2.2
+starlette==0.41.3
+uvicorn==0.44.0
